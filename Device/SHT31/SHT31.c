@@ -87,7 +87,7 @@ void SHT3x_ReadTempAndHumidity(float *temperature, float *humidity, resolution_t
     uint8_t data[6];
 
     HAL_I2C_Master_Transmit(port, SHT3X_I2C_ADDR << 1, cmd, 2, HAL_MAX_DELAY);
-    HAL_Delay(30);
+    HAL_Delay(8);
     HAL_I2C_Master_Receive(port, SHT3X_I2C_ADDR << 1, data, 6, HAL_MAX_DELAY);
 
     if (CalculateCRC(&data[0], 2) != data[2] || CalculateCRC(&data[3], 2) != data[5]) {

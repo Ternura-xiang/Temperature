@@ -58,7 +58,6 @@ typedef enum {
 extern "C" {
 #endif // __cplusplus
 
-static uint8_t CalculateCRC(uint8_t *data, uint8_t length);
 void SHT3x_Init(void);
 void SHT3x_ReadTempAndHumidity(float *temperature, float *humidity,
 		resolution_t resolution);

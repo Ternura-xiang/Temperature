@@ -38,6 +38,8 @@
         * Output
         * EVENT_OUT
         * EXTI
+        * Free pins are configured automatically as Analog (this feature is enabled through
+        * the Code Generation settings)
 */
 void MX_GPIO_Init(void)
 {
@@ -49,22 +51,36 @@ void MX_GPIO_Init(void)
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
-  /*Configure GPIO pin Output Level
-   * HT1621B 空闲状态要求:
-   *   /CS  = HIGH (片选无效)
-   *   /WR  = HIGH (时钟空闲高电平)
-   *   DATA = LOW  (数据空闲低电平)
-   */
+  /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOA, WR_Pin|CS_Pin, GPIO_PIN_SET);
-  HAL_GPIO_WritePin(GPIOA, DAT_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(DAT_GPIO_Port, DAT_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin : PC15 */
+  GPIO_InitStruct.Pin = GPIO_PIN_15;
+  GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : PA1 PA2 PA3 PA4
+                           PA5 PA6 PA7 PA15 */
+  GPIO_InitStruct.Pin = GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_3|GPIO_PIN_4
+                          |GPIO_PIN_5|GPIO_PIN_6|GPIO_PIN_7|GPIO_PIN_15;
+  GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : PB0 PB1 PB3 */
+  GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_3;
+  GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /*Configure GPIO pins : WR_Pin CS_Pin DAT_Pin */
   GPIO_InitStruct.Pin = WR_Pin|CS_Pin|DAT_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  /* GPIO_SPEED_FREQ_LOW = 2MHz, 但 HT1621 最大 2.1MHz,
-   * 改用 MEDIUM (25MHz) 确保边沿质量, HT1621 内部有下拉, 实际速率由软件延时决定
-   */
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_MEDIUM;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 

@@ -36,7 +36,12 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+/* STM32L031 出厂 VREFINT 校准参数 */
+#define VREFINT_CAL_ADDR       ((uint32_t)0x1FF80078U)
+#define VREFINT_CAL_VREF_MV    3000U
 
+/* 12-bit ADC 满量程 */
+#define ADC_MAX_VALUE          4095U
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -94,27 +99,68 @@ int main(void)
   MX_I2C1_Init();
   MX_RTC_Init();
   /* USER CODE BEGIN 2 */
+	HAL_ADCEx_Calibration_Start(&hadc, ADC_SINGLE_ENDED);
 	LCD_Init();
 	SHT3x_Init();
 
-
-	LCD_Display_power(3);
+	/* 清除遗留的电源唤醒标志 */
+	__HAL_PWR_CLEAR_FLAG(PWR_FLAG_WU);
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+	uint32_t time = 0;
+	uint32_t pwr_raw, vdda;
+	uint16_t cal = *(volatile const uint16_t *)VREFINT_CAL_ADDR;
   while (1)
   {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-  	SHT3x_ReadTempAndHumidity(&temperature, &humidity, MEDIUM_RESOLUTION);
-  	HAL_Delay(500);
-  	LCD_Display_value(temperature, HT1621_DISPLAY_TEMPERATURE);
-  	HAL_Delay(5000);
-  	LCD_Display_value(humidity, HT1621_DISPLAY_HUMIDITY);
-  	HAL_Delay(5000);
+  	//HAL_Delay(5000);
+  	if (time % 120 == 0)
+  	{
+  		/* 1. 读取 VDDINT 电压 */
+  		HAL_ADC_Start(&hadc);
+  		HAL_ADC_PollForConversion(&hadc, 20);
+  		pwr_raw = HAL_ADC_GetValue(&hadc);
+  		vdda = (uint32_t)(((uint64_t)VREFINT_CAL_VREF_MV * cal + pwr_raw / 2U) / pwr_raw);
+  		// HAL_ADCEx_DisableVREFINT();
+  		if (vdda > 2900){
+  			LCD_Display_power(3);
+  		}
+  		else if (vdda > 2750){
+  			LCD_Display_power(2);
+  		}
+  		else if (vdda > 2500){
+  			LCD_Display_power(1);
+  		}
+  		else{
+  			LCD_Display_power(0);
+  		}
+  	}
+
+  	if (time % 2 == 0)
+  	{
+  		/* 2. 读取温湿度 */
+  		SHT3x_ReadTempAndHumidity(&temperature, &humidity, MEDIUM_RESOLUTION);
+  		// 显示温度
+  		LCD_Display_value(temperature, HT1621_DISPLAY_TEMPERATURE);
+  	}
+  	else
+  	{
+  		// 显示湿度
+  		LCD_Display_value(humidity, HT1621_DISPLAY_HUMIDITY);
+  	}
+  	time++;
+
+  	/* 3. 进入低功耗模式 */
+  	HAL_SuspendTick();	// 暂停 HAL 的 SysTick，避免它周期性唤醒 CPU
+  	// STOP 模式：低功耗稳压器，使用 WFI 等待中断
+  	HAL_PWR_EnterSTOPMode(PWR_LOWPOWERREGULATOR_ON,PWR_STOPENTRY_WFI);
+  	SystemClock_Config();	// 重新配置系统时钟，恢复正常运行频率
+  	HAL_ResumeTick();	// 恢复 HAL 的 1 ms 时基
   }
   /* USER CODE END 3 */
 }
@@ -154,11 +200,11 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
                               |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
-  RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
+  RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV8;
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_1) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
   {
     Error_Handler();
   }
